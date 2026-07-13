@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { OtpChannel, OtpPurpose, Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -165,7 +165,10 @@ export class AuthService {
       },
     );
     const refreshToken = await this.jwt.signAsync(
-      { sub: userId, role },
+      // jti guarantees every refresh token is unique, even if two are issued in
+      // the same second for the same user (otherwise identical JWTs would collide
+      // on the token_hash unique index).
+      { sub: userId, role, jti: randomUUID() },
       {
         secret: this.config.get<string>('jwt.refreshSecret'),
         expiresIn: this.config.get<string>('jwt.refreshTtl'),
