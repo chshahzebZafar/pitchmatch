@@ -1,0 +1,93 @@
+// PitchMatch — Prisma schema (MySQL)
+// v0.1 covers self-contained auth (User + refresh tokens + OTP).
+// Domain tables (profiles, swipes, unlocks, matches, subscriptions, quota_ledger)
+// are added in later milestones — see PITCHMATCH_BUILD_CHECKLIST.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  INVESTOR
+  INNOVATOR
+  MEDIATOR
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum OtpChannel {
+  EMAIL
+  PHONE
+}
+
+enum OtpPurpose {
+  REGISTRATION
+  LOGIN
+  PASSWORD_RESET
+}
+
+model User {
+  id            String     @id @default(cuid())
+  role          Role
+  name          String     @db.VarChar(120)
+  email         String     @unique
+  phone         String     @unique
+  passwordHash  String     @map("password_hash")
+  country       String?
+  city          String?
+  photoUrl      String?    @map("photo_url")
+  linkedinUrl   String?    @map("linkedin_url")
+  bio           String?    @db.VarChar(300)
+  emailVerified Boolean    @default(false) @map("email_verified")
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+  status        UserStatus @default(PENDING_VERIFICATION)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+  otpCodes      OtpCode[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  userId     String     @map("user_id")
+  channel    OtpChannel
+  purpose    OtpPurpose @default(REGISTRATION)
+  codeHash   String     @map("code_hash")
+  expiresAt  DateTime   @map("expires_at")
+  consumedAt DateTime?  @map("consumed_at")
+  attempts   Int        @default(0)
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("otp_codes")
+}
