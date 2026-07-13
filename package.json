@@ -4,7 +4,7 @@
   "description": "PitchMatch backend API (NestJS + MySQL/Prisma) — self-contained auth",
   "private": true,
   "scripts": {
-    "build": "prisma migrate deploy && nest build",
+    "build": "nest build",
     "compile": "nest build",
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
