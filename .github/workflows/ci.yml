@@ -21,4 +21,4 @@ jobs:
       - run: npx prisma generate
         env:
           DATABASE_URL: mysql://user:pass@localhost:3306/db
-      - run: npm run build
+      - run: npm run compile
