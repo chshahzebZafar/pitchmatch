@@ -152,6 +152,55 @@ export class AuthService {
     return { message: 'Logged out' };
   }
 
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    // Never reveal whether the account exists.
+    if (user && user.status !== UserStatus.DELETED) {
+      await this.otp.issue(user.id, OtpChannel.EMAIL, OtpPurpose.PASSWORD_RESET);
+    }
+    return {
+      message: 'If an account exists for that email, a reset code has been sent.',
+    };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) throw new BadRequestException('Invalid email or code');
+
+    const ok = await this.otp.verify(user.id, code, OtpPurpose.PASSWORD_RESET);
+    if (!ok) throw new BadRequestException('Invalid or expired code');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    // Recovery flow: revoke every existing session.
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: 'Password updated. You can now log in with your new password.' };
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new BadRequestException('Current password is incorrect');
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+
+    return { message: 'Password changed.' };
+  }
+
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }
