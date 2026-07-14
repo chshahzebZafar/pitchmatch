@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { User, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateMeDto } from './dto/update-me.dto';
+import { avatarUrl } from '../media/storage';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +18,14 @@ export class UsersService {
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: { ...dto },
+    });
+    return this.sanitize(user);
+  }
+
+  async setPhoto(userId: string, filename: string) {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { photoUrl: avatarUrl(filename) },
     });
     return this.sanitize(user);
   }

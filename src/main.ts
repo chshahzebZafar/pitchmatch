@@ -1,16 +1,23 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ensureUploadDirs, UPLOAD_DIR } from './media/storage';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  ensureUploadDirs();
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const prefix = process.env.API_PREFIX || 'api/v1';
   app.setGlobalPrefix(prefix);
 
-  app.use(helmet());
+  // Serve uploaded media at /uploads (outside the API prefix).
+  app.useStaticAssets(UPLOAD_DIR, { prefix: '/uploads/' });
+
+  // Allow images to be embedded cross-origin (avatars loaded by the app).
+  app.use(helmet({ crossOriginResourcePolicy: false }));
 
   const origins = process.env.CORS_ORIGINS || '*';
   app.enableCors({
