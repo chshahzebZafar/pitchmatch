@@ -1,6 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Role } from '@prisma/client';
+import { Role, SwipeDirection } from '@prisma/client';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
 import { DiscoveryService } from './discovery.service';
 import { SwipeDto } from './dto/swipe.dto';
@@ -37,6 +47,20 @@ export class DiscoveryController {
   @ApiOperation({ summary: 'List the current user’s matches' })
   matches(@CurrentUser() user: AuthUser) {
     return this.discovery.matches(user.id);
+  }
+
+  @Get('swipes')
+  @ApiOperation({ summary: 'List my swipes in a direction (LEFT = passed, RIGHT = interested)' })
+  history(@CurrentUser() user: AuthUser, @Query('direction') direction?: string) {
+    const dir = direction === 'RIGHT' ? SwipeDirection.RIGHT : SwipeDirection.LEFT;
+    return this.discovery.swipeHistory(user.id, dir);
+  }
+
+  @Delete('swipes/:targetId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Undo one swipe (target returns to the deck)' })
+  undo(@CurrentUser() user: AuthUser, @Param('targetId') targetId: string) {
+    return this.discovery.undoSwipe(user.id, targetId);
   }
 
   @Delete('swipes')

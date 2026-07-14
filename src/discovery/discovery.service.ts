@@ -92,6 +92,35 @@ export class DiscoveryService {
     return { matched: false };
   }
 
+  // List the user's swipes in one direction, with the target's preview info.
+  async swipeHistory(userId: string, direction: SwipeDirection) {
+    const rows = await this.prisma.swipe.findMany({
+      where: { swiperId: userId, direction },
+      include: { target: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((s) => ({
+      targetId: s.targetId,
+      direction: s.direction,
+      createdAt: s.createdAt,
+      user: {
+        id: s.target.id,
+        firstName: s.target.name.split(' ')[0],
+        photoUrl: s.target.photoUrl,
+        role: s.target.role,
+        country: s.target.country,
+      },
+    }));
+  }
+
+  // Undo a single swipe (and any match it created) — the target returns to the deck.
+  async undoSwipe(userId: string, targetId: string) {
+    await this.prisma.swipe.deleteMany({ where: { swiperId: userId, targetId } });
+    const [a, b] = [userId, targetId].sort();
+    await this.prisma.match.deleteMany({ where: { userAId: a, userBId: b } });
+    return { undone: true };
+  }
+
   // Clear the user's swipes (and any matches involving them) so the deck repopulates.
   async reset(userId: string) {
     const [swipes, matches] = await this.prisma.$transaction([
