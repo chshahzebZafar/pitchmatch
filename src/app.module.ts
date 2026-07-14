@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { DiscoveryModule } from './discovery/discovery.module';
+import { ChatModule } from './chat/chat.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -18,6 +19,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     UsersModule,
     ProfilesModule,
     DiscoveryModule,
+    ChatModule,
   ],
   controllers: [HealthController],
   providers: [

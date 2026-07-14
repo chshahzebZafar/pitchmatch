@@ -65,6 +65,7 @@ model User {
   swipesReceived   Swipe[]           @relation("target")
   matchesA         Match[]           @relation("matchA")
   matchesB         Match[]           @relation("matchB")
+  sentMessages     Message[]
 
   @@map("users")
 }
@@ -267,7 +268,45 @@ model Match {
   userA User @relation("matchA", fields: [userAId], references: [id], onDelete: Cascade)
   userB User @relation("matchB", fields: [userBId], references: [id], onDelete: Cascade)
 
+  conversation Conversation?
+
   @@unique([userAId, userBId])
   @@index([userBId])
   @@map("matches")
+}
+
+// ---- Chat ----
+
+enum ConversationType {
+  MATCH
+  DEAL_ROOM
+}
+
+model Conversation {
+  id         String           @id @default(cuid())
+  matchId    String           @unique @map("match_id")
+  type       ConversationType @default(MATCH)
+  mediatorId String?          @map("mediator_id")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  match    Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             Int       @id @default(autoincrement())
+  conversationId String    @map("conversation_id")
+  senderId       String    @map("sender_id")
+  body           String    @db.Text
+  attachmentUrl  String?   @map("attachment_url")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
 }
