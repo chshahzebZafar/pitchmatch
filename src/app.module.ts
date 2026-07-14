@@ -5,6 +5,7 @@ import configuration from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ProfilesModule } from './profiles/profiles.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -14,6 +15,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     PrismaModule,
     AuthModule,
     UsersModule,
+    ProfilesModule,
   ],
   controllers: [HealthController],
   providers: [

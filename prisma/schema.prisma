@@ -49,14 +49,18 @@ model User {
   photoUrl      String?    @map("photo_url")
   linkedinUrl   String?    @map("linkedin_url")
   bio           String?    @db.VarChar(300)
-  emailVerified Boolean    @default(false) @map("email_verified")
-  phoneVerified Boolean    @default(false) @map("phone_verified")
-  status        UserStatus @default(PENDING_VERIFICATION)
-  createdAt     DateTime   @default(now()) @map("created_at")
-  updatedAt     DateTime   @updatedAt @map("updated_at")
+  emailVerified    Boolean    @default(false) @map("email_verified")
+  phoneVerified    Boolean    @default(false) @map("phone_verified")
+  profileCompleted Boolean    @default(false) @map("profile_completed")
+  status           UserStatus @default(PENDING_VERIFICATION)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens RefreshToken[]
-  otpCodes      OtpCode[]
+  refreshTokens    RefreshToken[]
+  otpCodes         OtpCode[]
+  investorProfile  InvestorProfile?
+  innovatorProfile InnovatorProfile?
+  mediatorProfile  MediatorProfile?
 
   @@map("users")
 }
@@ -90,4 +94,133 @@ model OtpCode {
 
   @@index([userId])
   @@map("otp_codes")
+}
+
+// ---- Profiles ----
+// Multi-select fields (sectors, stages, geo, jurisdictions, specializations) are
+// stored as JSON arrays of strings (MySQL JSON) so the matching engine can use
+// JSON_OVERLAPS. Single-select fields use enums.
+
+enum InvestorType {
+  ANGEL
+  VC
+  FAMILY_OFFICE
+  CORPORATE
+  INDIVIDUAL
+}
+
+enum FundingBracket {
+  B_5K_25K
+  B_25K_100K
+  B_100K_500K
+  B_500K_2M
+  B_2M_PLUS
+}
+
+enum InnovatorStage {
+  IDEA
+  PROTOTYPE
+  REVENUE_GENERATING
+  SCALING
+}
+
+enum BusinessModel {
+  B2B
+  B2C
+  B2B2C
+  MARKETPLACE
+  SUBSCRIPTION
+  OTHER
+}
+
+enum Instrument {
+  EQUITY
+  SAFE
+  CONVERTIBLE_NOTE
+  REVENUE_SHARE
+  OPEN_TO_DISCUSS
+}
+
+enum FeeModel {
+  HOURLY
+  FIXED_PER_DEAL
+  SUCCESS_FEE
+}
+
+enum MediatorVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model InvestorProfile {
+  userId       String         @id @map("user_id")
+  investorType InvestorType   @map("investor_type")
+  sectors      Json // string[]
+  stages       Json // string[] (Idea/Pre-seed/Seed/Series A/Growth)
+  ticketMin    FundingBracket @map("ticket_min")
+  ticketMax    FundingBracket @map("ticket_max")
+  geoFocus     Json           @map("geo_focus") // string[] or ["GLOBAL"]
+  horizon      String? // <1yr / 1-3yrs / 3-5yrs / 5+yrs
+  involvement  String? // Silent / Advisory / Board seat / Hands-on
+  coInvest     Boolean?       @map("co_invest")
+  dealsCount   Int?           @map("deals_count")
+  verifiedBadge Boolean       @default(false) @map("verified_badge")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("investor_profiles")
+}
+
+model InnovatorProfile {
+  userId          String         @id @map("user_id")
+  title           String
+  sector          String
+  stage           InnovatorStage
+  oneLiner        String         @map("one_liner") @db.VarChar(140)
+  problem         String         @db.VarChar(600)
+  solution        String         @db.VarChar(1000)
+  businessModel   BusinessModel  @map("business_model")
+  fundingMin      FundingBracket @map("funding_min")
+  fundingMax      FundingBracket @map("funding_max")
+  instrument      Instrument
+  breakevenMonths Int?           @map("breakeven_months")
+  revY1           String?        @map("rev_y1")
+  revY2           String?        @map("rev_y2")
+  revY3           String?        @map("rev_y3")
+  traction        String?        @db.VarChar(500)
+  geoMarket       Json           @map("geo_market") // string[]
+  deckUrl         String?        @map("deck_url")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("innovator_profiles")
+}
+
+model MediatorProfile {
+  userId             String                     @id @map("user_id")
+  profTitle          String                     @map("prof_title")
+  qualification      String
+  licenseNo          String                     @map("license_no")
+  licenseBody        String                     @map("license_body")
+  jurisdictions      Json // string[]
+  yearsExp           Int                        @map("years_exp")
+  specializations    Json // string[]
+  firm               String?
+  feeModel           FeeModel                   @map("fee_model")
+  feeRange           String?                    @map("fee_range")
+  verificationStatus MediatorVerificationStatus @default(PENDING) @map("verification_status")
+  verifiedAt         DateTime?                  @map("verified_at")
+  verifiedBy         String?                    @map("verified_by")
+  rejectionReason    String?                    @map("rejection_reason")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("mediator_profiles")
 }
