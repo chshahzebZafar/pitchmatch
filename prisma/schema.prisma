@@ -61,6 +61,10 @@ model User {
   investorProfile  InvestorProfile?
   innovatorProfile InnovatorProfile?
   mediatorProfile  MediatorProfile?
+  swipesMade       Swipe[]           @relation("swiper")
+  swipesReceived   Swipe[]           @relation("target")
+  matchesA         Match[]           @relation("matchA")
+  matchesB         Match[]           @relation("matchB")
 
   @@map("users")
 }
@@ -223,4 +227,47 @@ model MediatorProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("mediator_profiles")
+}
+
+// ---- Discovery ----
+
+enum SwipeDirection {
+  LEFT
+  RIGHT
+}
+
+enum MatchStatus {
+  ACTIVE
+  BLOCKED
+  CLOSED
+}
+
+model Swipe {
+  id        String         @id @default(cuid())
+  swiperId  String         @map("swiper_id")
+  targetId  String         @map("target_id")
+  direction SwipeDirection
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  swiper User @relation("swiper", fields: [swiperId], references: [id], onDelete: Cascade)
+  target User @relation("target", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([swiperId, targetId])
+  @@index([targetId])
+  @@map("swipes")
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  userAId   String      @map("user_a")
+  userBId   String      @map("user_b")
+  status    MatchStatus @default(ACTIVE)
+  matchedAt DateTime    @default(now()) @map("matched_at")
+
+  userA User @relation("matchA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("matchB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userBId])
+  @@map("matches")
 }
