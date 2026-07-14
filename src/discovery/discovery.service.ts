@@ -92,6 +92,17 @@ export class DiscoveryService {
     return { matched: false };
   }
 
+  // Clear the user's swipes (and any matches involving them) so the deck repopulates.
+  async reset(userId: string) {
+    const [swipes, matches] = await this.prisma.$transaction([
+      this.prisma.swipe.deleteMany({ where: { swiperId: userId } }),
+      this.prisma.match.deleteMany({
+        where: { OR: [{ userAId: userId }, { userBId: userId }] },
+      }),
+    ]);
+    return { swipesCleared: swipes.count, matchesCleared: matches.count };
+  }
+
   async matches(userId: string) {
     const rows = await this.prisma.match.findMany({
       where: { status: 'ACTIVE', OR: [{ userAId: userId }, { userBId: userId }] },

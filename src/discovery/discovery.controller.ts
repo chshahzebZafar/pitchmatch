@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
@@ -37,5 +37,12 @@ export class DiscoveryController {
   @ApiOperation({ summary: 'List the current user’s matches' })
   matches(@CurrentUser() user: AuthUser) {
     return this.discovery.matches(user.id);
+  }
+
+  @Delete('swipes')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset my swipes + matches (brings the deck back)' })
+  reset(@CurrentUser() user: AuthUser) {
+    return this.discovery.reset(user.id);
   }
 }
