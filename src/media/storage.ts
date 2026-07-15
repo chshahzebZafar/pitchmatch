@@ -6,6 +6,7 @@ import { join, resolve } from 'path';
 // (e.g. ~/domains/<domain>/uploads on Hostinger). Override with UPLOAD_DIR.
 export const UPLOAD_DIR = process.env.UPLOAD_DIR || resolve(process.cwd(), '..', 'uploads');
 export const AVATAR_DIR = join(UPLOAD_DIR, 'avatars');
+export const CHAT_DIR = join(UPLOAD_DIR, 'chat');
 
 // Public origin (no /api/v1) used to build absolute media URLs.
 export const PUBLIC_BASE_URL =
@@ -13,8 +14,13 @@ export const PUBLIC_BASE_URL =
 
 export function ensureUploadDirs() {
   mkdirSync(AVATAR_DIR, { recursive: true });
+  mkdirSync(CHAT_DIR, { recursive: true });
 }
 
 export function avatarUrl(filename: string): string {
   return `${PUBLIC_BASE_URL}/uploads/avatars/${filename}`;
+}
+
+export function chatAttachmentUrl(filename: string): string {
+  return `${PUBLIC_BASE_URL}/uploads/chat/${filename}`;
 }

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { chatAttachmentUrl } from '../media/storage';
 
 @Injectable()
 export class ChatService {
@@ -70,19 +71,28 @@ export class ChatService {
 
   async messages(userId: string, conversationId: string, after?: number, limit = 50) {
     await this.authorize(conversationId, userId);
+    let messages;
     if (after != null && !Number.isNaN(after)) {
-      return this.prisma.message.findMany({
+      messages = await this.prisma.message.findMany({
         where: { conversationId, id: { gt: after } },
         orderBy: { id: 'asc' },
         take: 200,
       });
+    } else {
+      const rows = await this.prisma.message.findMany({
+        where: { conversationId },
+        orderBy: { id: 'desc' },
+        take: limit,
+      });
+      messages = rows.reverse();
     }
-    const rows = await this.prisma.message.findMany({
-      where: { conversationId },
+    // The highest id among MY messages the other party has read → drives "Seen".
+    const lastRead = await this.prisma.message.findFirst({
+      where: { conversationId, senderId: userId, NOT: { readAt: null } },
       orderBy: { id: 'desc' },
-      take: limit,
+      select: { id: true },
     });
-    return rows.reverse();
+    return { messages, otherLastReadId: lastRead?.id ?? null };
   }
 
   async send(userId: string, conversationId: string, body: string) {
@@ -91,6 +101,18 @@ export class ChatService {
     if (!trimmed) throw new BadRequestException('Message is empty');
     return this.prisma.message.create({
       data: { conversationId, senderId: userId, body: trimmed },
+    });
+  }
+
+  async sendAttachment(userId: string, conversationId: string, filename: string) {
+    await this.authorize(conversationId, userId);
+    return this.prisma.message.create({
+      data: {
+        conversationId,
+        senderId: userId,
+        body: '',
+        attachmentUrl: chatAttachmentUrl(filename),
+      },
     });
   }
 

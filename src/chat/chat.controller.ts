@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,11 +8,24 @@ import {
   Param,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { diskStorage } from 'multer';
+import { randomUUID } from 'crypto';
+import { extname } from 'path';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { CHAT_DIR } from '../media/storage';
+
+const MIME_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
 
 @ApiTags('chat')
 @ApiBearerAuth()
@@ -45,6 +59,34 @@ export class ChatController {
   @ApiOperation({ summary: 'Send a message' })
   send(@CurrentUser('id') userId: string, @Param('id') id: string, @Body() dto: SendMessageDto) {
     return this.chat.send(userId, id, dto.body);
+  }
+
+  @Post(':id/attachment')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Send an image attachment (multipart field: image)' })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: CHAT_DIR,
+        filename: (_req, file, cb) => {
+          const ext = MIME_EXT[file.mimetype] || extname(file.originalname) || '.jpg';
+          cb(null, `${randomUUID()}${ext}`);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        if (MIME_EXT[file.mimetype]) cb(null, true);
+        else cb(new BadRequestException('Only JPG, PNG or WebP images are allowed'), false);
+      },
+    }),
+  )
+  sendAttachment(
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No image provided');
+    return this.chat.sendAttachment(userId, id, file.filename);
   }
 
   @Post(':id/read')
