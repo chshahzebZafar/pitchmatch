@@ -1,15 +1,20 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Role, SwipeDirection } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SafetyService } from '../safety/safety.service';
 import { scorePair } from './matching';
 
 @Injectable()
 export class DiscoveryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly safety: SafetyService,
+  ) {}
 
   async feed(userId: string, role: Role, limit = 20, offset = 0) {
     const opposite =
@@ -31,7 +36,8 @@ export class DiscoveryService {
       where: { swiperId: userId },
       select: { targetId: true },
     });
-    const excludeIds = [userId, ...swiped.map((s) => s.targetId)];
+    const blocked = await this.safety.blockedIds(userId);
+    const excludeIds = [userId, ...swiped.map((s) => s.targetId), ...blocked];
 
     const candidates = await this.prisma.user.findMany({
       where: {
@@ -68,6 +74,9 @@ export class DiscoveryService {
     if (targetId === userId) throw new BadRequestException("You can't swipe yourself");
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
     if (!target) throw new NotFoundException('User not found');
+    if (await this.safety.isBlockedBetween(userId, targetId)) {
+      throw new ForbiddenException('This profile is not available');
+    }
 
     await this.prisma.swipe.upsert({
       where: { swiperId_targetId: { swiperId: userId, targetId } },

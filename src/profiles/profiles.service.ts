@@ -1,13 +1,50 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SafetyService } from '../safety/safety.service';
 import { InvestorProfileDto } from './dto/investor-profile.dto';
 import { InnovatorProfileDto } from './dto/innovator-profile.dto';
 import { MediatorProfileDto } from './dto/mediator-profile.dto';
 
 @Injectable()
 export class ProfilesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly safety: SafetyService,
+  ) {}
+
+  /** Another user's full profile. Never exposes email/phone. */
+  async getPublicProfile(viewerId: string, userId: string) {
+    if (await this.safety.isBlockedBetween(viewerId, userId)) {
+      throw new NotFoundException('Profile not available');
+    }
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { investorProfile: true, innovatorProfile: true, mediatorProfile: true },
+    });
+    if (!u || u.status !== UserStatus.ACTIVE) throw new NotFoundException('User not found');
+
+    const profile =
+      u.role === Role.INVESTOR
+        ? u.investorProfile
+        : u.role === Role.INNOVATOR
+          ? u.innovatorProfile
+          : u.role === Role.MEDIATOR
+            ? u.mediatorProfile
+            : null;
+
+    return {
+      id: u.id,
+      firstName: u.name.split(' ')[0],
+      role: u.role,
+      photoUrl: u.photoUrl,
+      country: u.country,
+      city: u.city,
+      bio: u.bio,
+      linkedinUrl: u.linkedinUrl,
+      profile,
+    };
+  }
 
   async getMyProfile(userId: string, role: Role) {
     switch (role) {

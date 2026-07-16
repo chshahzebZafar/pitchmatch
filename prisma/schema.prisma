@@ -66,6 +66,10 @@ model User {
   matchesA         Match[]           @relation("matchA")
   matchesB         Match[]           @relation("matchB")
   sentMessages     Message[]
+  blocksMade       Block[]           @relation("blocker")
+  blocksReceived   Block[]           @relation("blocked")
+  reportsMade      Report[]          @relation("reporter")
+  reportsReceived  Report[]          @relation("reported")
 
   @@map("users")
 }
@@ -309,4 +313,52 @@ model Message {
 
   @@index([conversationId])
   @@map("messages")
+}
+
+// ---- Safety ----
+
+enum ReportReason {
+  SPAM
+  INAPPROPRIATE
+  SCAM
+  FAKE_PROFILE
+  HARASSMENT
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTIONED
+  DISMISSED
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("blocks")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String       @map("reporter_id")
+  reportedId String       @map("reported_id")
+  reason     ReportReason
+  details    String?      @db.VarChar(1000)
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  reporter User @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("reported", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reportedId])
+  @@map("reports")
 }

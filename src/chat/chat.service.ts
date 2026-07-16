@@ -5,11 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { SafetyService } from '../safety/safety.service';
 import { chatAttachmentUrl } from '../media/storage';
 
 @Injectable()
 export class ChatService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly safety: SafetyService,
+  ) {}
 
   private conversationForMatch(matchId: string) {
     return this.prisma.conversation.upsert({
@@ -29,7 +33,11 @@ export class ChatService {
     if (userId !== userAId && userId !== userBId) {
       throw new ForbiddenException('Not your conversation');
     }
-    return { conv, otherId: userId === userAId ? userBId : userAId };
+    const otherId = userId === userAId ? userBId : userAId;
+    if (await this.safety.isBlockedBetween(userId, otherId)) {
+      throw new ForbiddenException('This conversation is no longer available');
+    }
+    return { conv, otherId };
   }
 
   // One conversation per active match, with the other user, last message and unread count.
