@@ -36,6 +36,12 @@ export class DiscoveryController {
     );
   }
 
+  @Get('interested')
+  @ApiOperation({ summary: "People who swiped right on me and I haven't answered yet" })
+  interested(@CurrentUser() user: AuthUser) {
+    return this.discovery.interestedInMe(user.id, user.role as Role);
+  }
+
   @Post('swipes')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Record a swipe; returns { matched } (and matchId on a mutual right)' })

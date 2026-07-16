@@ -70,6 +70,56 @@ export class DiscoveryService {
     };
   }
 
+  /**
+   * People who swiped RIGHT on me and I haven't swiped on yet — one tap from a match.
+   * Excludes anyone blocked either way.
+   */
+  async interestedInMe(userId: string, role: Role) {
+    const opposite =
+      role === Role.INVESTOR ? Role.INNOVATOR : role === Role.INNOVATOR ? Role.INVESTOR : null;
+    if (!opposite) return { total: 0, items: [] };
+
+    const admirers = await this.prisma.swipe.findMany({
+      where: { targetId: userId, direction: SwipeDirection.RIGHT },
+      select: { swiperId: true },
+    });
+    const admirerIds = admirers.map((s) => s.swiperId);
+    if (admirerIds.length === 0) return { total: 0, items: [] };
+
+    const mine = await this.prisma.swipe.findMany({
+      where: { swiperId: userId, targetId: { in: admirerIds } },
+      select: { targetId: true },
+    });
+    const alreadySwiped = new Set(mine.map((s) => s.targetId));
+    const blocked = new Set(await this.safety.blockedIds(userId));
+    const pending = admirerIds.filter((id) => !alreadySwiped.has(id) && !blocked.has(id));
+    if (pending.length === 0) return { total: 0, items: [] };
+
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { investorProfile: true, innovatorProfile: true },
+    });
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: pending }, status: 'ACTIVE', profileCompleted: true },
+      include: { investorProfile: true, innovatorProfile: true },
+    });
+
+    const scored = users
+      .map((c) => {
+        let score = 0;
+        if (role === Role.INVESTOR && viewer?.investorProfile && c.innovatorProfile) {
+          score = scorePair(viewer.investorProfile, c.innovatorProfile);
+        } else if (role === Role.INNOVATOR && viewer?.innovatorProfile && c.investorProfile) {
+          score = scorePair(c.investorProfile, viewer.innovatorProfile);
+        }
+        return { c, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    return { total: scored.length, items: scored.map(({ c, score }) => this.toCard(c, score)) };
+  }
+
   async swipe(userId: string, targetId: string, direction: SwipeDirection) {
     if (targetId === userId) throw new BadRequestException("You can't swipe yourself");
     const target = await this.prisma.user.findUnique({ where: { id: targetId } });
