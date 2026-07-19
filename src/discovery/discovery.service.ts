@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Role, SwipeDirection } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { SafetyService } from '../safety/safety.service';
 import { scorePair } from './matching';
 
@@ -14,6 +15,7 @@ export class DiscoveryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly safety: SafetyService,
+    private readonly mail: MailService,
   ) {}
 
   async feed(userId: string, role: Role, limit = 20, offset = 0) {
@@ -146,6 +148,15 @@ export class DiscoveryService {
         create: { userAId: a, userBId: b },
         update: {},
       });
+      // Notify the *other* person only. The swiper is looking at the match
+      // modal right now; the person who swiped right earlier is not in the app
+      // and would otherwise never learn about it until they next open it.
+      const me = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      });
+      if (me) void this.mail.sendNewMatch(target.email, target.name, me.name);
+
       return { matched: true, matchId: match.id };
     }
     return { matched: false };

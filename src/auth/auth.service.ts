@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { OtpChannel, OtpPurpose, Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from '../otp/otp.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -27,6 +28,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly otp: OtpService,
+    private readonly mail: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -79,6 +81,10 @@ export class AuthService {
       where: { id: user.id },
       data: { emailVerified: true, status: nextStatus },
     });
+
+    // Fire-and-forget: a mail failure must not fail verification, which has
+    // already succeeded and issued tokens by this point.
+    void this.mail.sendWelcome(updated.email, updated.name);
 
     return this.issueTokens(updated.id, updated.role);
   }
@@ -182,6 +188,8 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
+    void this.mail.sendPasswordChanged(user.email, user.name, { sessionsRevoked: true });
+
     return { message: 'Password updated. You can now log in with your new password.' };
   }
 
@@ -197,6 +205,8 @@ export class AuthService {
       where: { id: user.id },
       data: { passwordHash },
     });
+
+    void this.mail.sendPasswordChanged(user.email, user.name, { sessionsRevoked: false });
 
     return { message: 'Password changed.' };
   }

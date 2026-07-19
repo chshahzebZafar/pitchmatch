@@ -91,35 +91,166 @@ export class MailService implements OnModuleInit {
   }
 
   /**
-   * Send an OTP. Returns false when mail is disabled or the send failed, so the
-   * caller can fall back to logging rather than failing the request — a signup
-   * that already created the user must not 500 because SMTP was down; the code
-   * stays valid and "resend" retries.
+   * The single delivery path. Returns false when mail is disabled or the send
+   * failed — never throws. Every caller is on a request that has already done
+   * its real work (user created, password changed, match recorded), so a mail
+   * failure must never turn a successful operation into a 500.
    */
-  async sendOtp(mail: OtpMail): Promise<boolean> {
+  private async deliver(msg: {
+    to: string;
+    subject: string;
+    text: string;
+    html: string;
+    kind: string;
+  }): Promise<boolean> {
     if (!this.transporter) return false;
-
-    const app = this.config.get<string>('mail.appName') ?? 'PitchMatch';
-    const copy = COPY[mail.purpose];
-    const replyTo = this.config.get<string>('mail.replyTo') || undefined;
-
     try {
       await this.transporter.sendMail({
         from: this.from(),
-        to: mail.to,
-        replyTo,
-        subject: copy.subject(app),
-        text: this.text(mail, copy, app),
-        html: this.html(mail, copy, app),
+        to: msg.to,
+        replyTo: this.config.get<string>('mail.replyTo') || undefined,
+        subject: msg.subject,
+        text: msg.text,
+        html: msg.html,
       });
-      this.logger.log(`OTP ${mail.purpose} emailed to ${this.mask(mail.to)}`);
+      this.logger.log(`${msg.kind} emailed to ${this.mask(msg.to)}`);
       return true;
     } catch (err) {
-      this.logger.error(
-        `OTP ${mail.purpose} to ${this.mask(mail.to)} failed: ${(err as Error).message}`,
-      );
+      this.logger.error(`${msg.kind} to ${this.mask(msg.to)} failed: ${(err as Error).message}`);
       return false;
     }
+  }
+
+  private get app(): string {
+    return this.config.get<string>('mail.appName') ?? 'PitchMatch';
+  }
+
+  /**
+   * Send an OTP. False lets the caller fall back to logging the code, so the
+   * operator can still read it out of the server log and "resend" can retry.
+   */
+  async sendOtp(mail: OtpMail): Promise<boolean> {
+    const copy = COPY[mail.purpose];
+    return this.deliver({
+      to: mail.to,
+      subject: copy.subject(this.app),
+      text: this.text(mail, copy, this.app),
+      html: this.html(mail, copy, this.app),
+      kind: `OTP ${mail.purpose}`,
+    });
+  }
+
+  /** Sent once, when a new account's email is verified. */
+  async sendWelcome(to: string, name: string): Promise<boolean> {
+    const heading = `Welcome to ${this.app}`;
+    const lead = 'Your email is verified and your account is live.';
+    const body =
+      'Finish your profile so the right people can find you — the more complete it is, the better your matches rank.';
+    return this.deliver({
+      to,
+      subject: `Welcome to ${this.app}`,
+      text: this.plain(name, heading, lead, [body], this.app),
+      html: this.layout(heading, `Hi ${this.escape(name)}, ${lead}`, `<p style="margin:0;font-size:15px;line-height:23px;color:${MUTED};">${body}</p>`, this.app),
+      kind: 'Welcome',
+    });
+  }
+
+  /**
+   * Security notice after a password change. Deliberately sent even when the
+   * user made the change themselves — the point is that an unauthorised change
+   * is visible to the real owner.
+   */
+  async sendPasswordChanged(
+    to: string,
+    name: string,
+    opts: { sessionsRevoked: boolean },
+  ): Promise<boolean> {
+    const heading = 'Your password was changed';
+    const when = new Date().toUTCString();
+    const lead = `This happened on ${when}.`;
+    const lines = [
+      opts.sessionsRevoked
+        ? 'Every device signed in to your account has been signed out. Sign in again with your new password.'
+        : 'You can keep using your other signed-in devices.',
+      "If this wasn't you, reset your password immediately — whoever made this change can currently sign in.",
+    ];
+    return this.deliver({
+      to,
+      subject: `Your ${this.app} password was changed`,
+      text: this.plain(name, heading, lead, lines, this.app),
+      html: this.layout(
+        heading,
+        `Hi ${this.escape(name)}, ${lead}`,
+        lines
+          .map(
+            (l, i) =>
+              `<p style="margin:${i ? '12px' : '0'} 0 0 0;font-size:15px;line-height:23px;color:${i === lines.length - 1 ? INK : MUTED};${i === lines.length - 1 ? 'font-weight:600;' : ''}">${l}</p>`,
+          )
+          .join(''),
+        this.app,
+      ),
+      kind: 'Password changed',
+    });
+  }
+
+  /** Sent to the person who is not in the app when a mutual match completes. */
+  async sendNewMatch(to: string, name: string, otherName: string): Promise<boolean> {
+    const heading = "It's a match";
+    const safeOther = this.escape(otherName);
+    const lead = `You and ${otherName} are both interested.`;
+    const body = `Open ${this.app} to view the full profile and start the conversation.`;
+    return this.deliver({
+      to,
+      subject: `You matched with ${this.headerSafe(otherName)} on ${this.app}`,
+      text: this.plain(name, heading, lead, [body], this.app),
+      html: this.layout(
+        heading,
+        `Hi ${this.escape(name)}, you and <strong style="color:${INK};">${safeOther}</strong> are both interested.`,
+        `<p style="margin:0;font-size:15px;line-height:23px;color:${MUTED};">${body}</p>`,
+        this.app,
+      ),
+      kind: 'New match',
+    });
+  }
+
+  /** Shared plain-text body. Every HTML mail ships a text alternative. */
+  private plain(
+    name: string,
+    heading: string,
+    lead: string,
+    lines: string[],
+    app: string,
+  ): string {
+    return [heading, '', `Hi ${name},`, lead, '', ...lines, '', `— ${app}`].join('\n');
+  }
+
+  /** Shared HTML shell, so every mail reads as the same product. */
+  private layout(heading: string, leadHtml: string, bodyHtml: string, app: string): string {
+    return `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px 0;background:${CANVAS};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${CANVAS};">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border:1px solid ${BORDER};border-radius:14px;">
+            <tr>
+              <td style="padding:28px 32px 0 32px;">
+                <div style="font-size:17px;font-weight:700;color:${NAVY};letter-spacing:-0.3px;">${app}</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 0 32px;">
+                <div style="font-size:21px;font-weight:700;color:${INK};letter-spacing:-0.3px;">${heading}</div>
+                <div style="font-size:15px;line-height:23px;color:${MUTED};padding-top:8px;">${leadHtml}</div>
+              </td>
+            </tr>
+            <tr><td style="padding:22px 32px 30px 32px;">${bodyHtml}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
   }
 
   /** Never log a full address — these lines end up in shared hosting logs. */
@@ -191,6 +322,16 @@ export class MailService implements OnModuleInit {
     </table>
   </body>
 </html>`;
+  }
+
+  /**
+   * Names are user-supplied and reach the Subject header. Nodemailer already
+   * refuses to emit a header containing CR/LF, but stripping them here means
+   * the guarantee is ours rather than a library's, and it keeps a pathological
+   * name from producing an absurd subject line.
+   */
+  private headerSafe(s: string): string {
+    return s.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80);
   }
 
   /** Names are user-supplied and land inside HTML. */
