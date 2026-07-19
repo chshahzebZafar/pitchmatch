@@ -6,14 +6,24 @@
  * hosting often blocks outbound SMTP (25/465/587), and the failure otherwise
  * only shows up when a real user tries to sign up.
  *
- * Plain JS with no imports from the app, so it runs in the deploy runtime dir
- * where only dist/, node_modules/ and package.json survive.
+ * NOTE: the Hostinger deploy strips everything except dist/, node_modules/ and
+ * package.json, so this file is NOT present in the runtime dir. To use it there
+ * you must paste it up manually (heredoc into ~/test-smtp.js).
  *
- *   SSH in, then:
- *     cd ~/domains/<domain>/nodejs
- *     /opt/alt/alt-nodejs24/root/usr/bin/node scripts/test-smtp.js you@example.com
+ * You usually don't need to. The app calls transporter.verify() at boot and
+ * logs the outcome, so after setting the env vars in hPanel and restarting:
  *
- * Reads the same env vars the app does, so a pass here means the app will send.
+ *     tail -40 ~/domains/<domain>/nodejs/console.log
+ *
+ * gives the same answer -- and reads the env vars hPanel injects into the app
+ * process, which an SSH shell does not have. Reach for this script only when
+ * you need to test credentials that are not yet configured on the app, in which
+ * case pass them inline:
+ *
+ *     SMTP_USER=... SMTP_PASS=... node ~/test-smtp.js you@example.com
+ *
+ * Plain JS with no imports from the app, so it runs anywhere nodemailer is
+ * resolvable.
  */
 const nodemailer = require('nodemailer');
 
