@@ -193,6 +193,51 @@ export class MailService implements OnModuleInit {
     });
   }
 
+  /**
+   * Outcome of a mediator's credential review.
+   *
+   * Mediators sit unable to use the app until an admin decides, so this is the
+   * only signal that anything happened. The rejection note is written by an
+   * admin, not a stranger, but it is still escaped — admin input is not
+   * automatically trustworthy input.
+   */
+  async sendMediatorDecision(
+    to: string,
+    name: string,
+    approved: boolean,
+    note?: string,
+  ): Promise<boolean> {
+    const heading = approved ? 'You are verified' : 'We could not verify your credentials';
+    const lead = approved
+      ? 'Your credentials have been reviewed and approved. Your account is now active.'
+      : 'We reviewed the credentials you submitted and could not verify them.';
+    const lines = [
+      approved
+        ? `Open ${this.app} to complete your profile and start taking on deals.`
+        : 'You can update your credentials and submit them again for review.',
+      ...(note ? [`Reviewer note: ${note}`] : []),
+    ];
+    return this.deliver({
+      to,
+      subject: approved
+        ? `You are verified on ${this.app}`
+        : `About your ${this.app} verification`,
+      text: this.plain(name, heading, lead, lines, this.app),
+      html: this.layout(
+        heading,
+        `Hi ${this.escape(name)}, ${lead}`,
+        lines
+          .map(
+            (l, i) =>
+              `<p style="margin:${i ? '12px' : '0'} 0 0 0;font-size:15px;line-height:23px;color:${MUTED};">${this.escape(l)}</p>`,
+          )
+          .join(''),
+        this.app,
+      ),
+      kind: `Mediator ${approved ? 'approved' : 'rejected'}`,
+    });
+  }
+
   /** Sent to the person who is not in the app when a mutual match completes. */
   async sendNewMatch(to: string, name: string, otherName: string): Promise<boolean> {
     const heading = "It's a match";
