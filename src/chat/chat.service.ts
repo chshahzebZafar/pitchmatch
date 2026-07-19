@@ -155,7 +155,9 @@ export class ChatService {
     await this.push.sendToUser(recipientId, {
       title: sender.name,
       body: preview.length > 120 ? `${preview.slice(0, 117)}...` : preview,
-      data: { type: 'message', conversationId },
+      // `title` rides along so a tap can open the chat with its header already
+      // populated, instead of showing a blank name until the fetch lands.
+      data: { type: 'message', conversationId, title: sender.name },
     });
   }
 
