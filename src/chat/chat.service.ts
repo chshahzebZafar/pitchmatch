@@ -7,12 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SafetyService } from '../safety/safety.service';
 import { chatAttachmentUrl } from '../media/storage';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly safety: SafetyService,
+    private readonly push: PushService,
   ) {}
 
   private conversationForMatch(matchId: string) {
@@ -104,23 +106,56 @@ export class ChatService {
   }
 
   async send(userId: string, conversationId: string, body: string) {
-    await this.authorize(conversationId, userId);
+    const { otherId } = await this.authorize(conversationId, userId);
     const trimmed = body.trim();
     if (!trimmed) throw new BadRequestException('Message is empty');
-    return this.prisma.message.create({
+    const message = await this.prisma.message.create({
       data: { conversationId, senderId: userId, body: trimmed },
     });
+
+    void this.notify(userId, otherId, conversationId, trimmed);
+    return message;
   }
 
   async sendAttachment(userId: string, conversationId: string, filename: string) {
-    await this.authorize(conversationId, userId);
-    return this.prisma.message.create({
+    const { otherId } = await this.authorize(conversationId, userId);
+    const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId: userId,
         body: '',
         attachmentUrl: chatAttachmentUrl(filename),
       },
+    });
+
+    void this.notify(userId, otherId, conversationId, 'Sent a photo');
+    return message;
+  }
+
+  /**
+   * Push the recipient. Fire-and-forget -- the message is already stored, so a
+   * push failure must not fail the send.
+   *
+   * The preview is truncated rather than sent whole: notification text lands on
+   * a lock screen, where the whole message would be readable by anyone holding
+   * the phone.
+   */
+  private async notify(
+    senderId: string,
+    recipientId: string,
+    conversationId: string,
+    preview: string,
+  ) {
+    const sender = await this.prisma.user.findUnique({
+      where: { id: senderId },
+      select: { name: true },
+    });
+    if (!sender) return;
+
+    await this.push.sendToUser(recipientId, {
+      title: sender.name,
+      body: preview.length > 120 ? `${preview.slice(0, 117)}...` : preview,
+      data: { type: 'message', conversationId },
     });
   }
 

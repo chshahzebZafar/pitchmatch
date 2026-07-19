@@ -11,6 +11,12 @@ export default () => ({
     ttlSeconds: parseInt(process.env.OTP_TTL_SECONDS || '300', 10),
     length: parseInt(process.env.OTP_LENGTH || '6', 10),
   },
+  // Firebase service-account JSON (raw or base64) for FCM HTTP v1. Unset
+  // disables push. Never a file path in production -- hosting panels hold this
+  // as an env var and the key must not sit on disk.
+  push: {
+    serviceAccount: process.env.FCM_SERVICE_ACCOUNT || '',
+  },
   // Plain SMTP on purpose rather than a provider SDK: Gmail now, a branded
   // no-reply@ on the domain later, becomes an env change instead of a code
   // change. With SMTP_USER/SMTP_PASS unset, sending is disabled and the code

@@ -7,6 +7,7 @@ import {
 import { Role, SwipeDirection } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PushService } from '../push/push.service';
 import { SafetyService } from '../safety/safety.service';
 import { scorePair } from './matching';
 
@@ -16,6 +17,7 @@ export class DiscoveryService {
     private readonly prisma: PrismaService,
     private readonly safety: SafetyService,
     private readonly mail: MailService,
+    private readonly push: PushService,
   ) {}
 
   async feed(userId: string, role: Role, limit = 20, offset = 0) {
@@ -155,7 +157,14 @@ export class DiscoveryService {
         where: { id: userId },
         select: { name: true },
       });
-      if (me) void this.mail.sendNewMatch(target.email, target.name, me.name);
+      if (me) {
+        void this.mail.sendNewMatch(target.email, target.name, me.name);
+        void this.push.sendToUser(target.id, {
+          title: "It's a match",
+          body: `You and ${me.name} are both interested.`,
+          data: { type: 'match', matchId: match.id, userId },
+        });
+      }
 
       return { matched: true, matchId: match.id };
     }

@@ -22,3 +22,11 @@ prisma/*.db
 Thumbs.db
 .idea/
 .vscode/
+
+# Firebase service-account keys — these can send push as this app. Never commit.
+# google-services.json is NOT here on purpose: it is client config, ships inside
+# the APK, and EAS needs it at build time.
+*serviceAccount*.json
+*service-account*.json
+firebase-adminsdk*.json
+matchventure-*-firebase-adminsdk-*.json

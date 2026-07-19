@@ -58,6 +58,7 @@ model User {
 
   refreshTokens    RefreshToken[]
   otpCodes         OtpCode[]
+  pushTokens       PushToken[]
   investorProfile  InvestorProfile?
   innovatorProfile InnovatorProfile?
   mediatorProfile  MediatorProfile?
@@ -361,4 +362,26 @@ model Report {
 
   @@index([reportedId])
   @@map("reports")
+}
+
+/// A device that can receive push. Keyed by the FCM registration token, which
+/// is per install+app, so one user can hold several rows (phone + tablet) and a
+/// device that changes hands moves to the new user rather than duplicating.
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique @db.VarChar(255)
+  platform  Platform
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_tokens")
+}
+
+enum Platform {
+  ANDROID
+  IOS
 }
