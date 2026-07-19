@@ -11,4 +11,19 @@ export default () => ({
     ttlSeconds: parseInt(process.env.OTP_TTL_SECONDS || '300', 10),
     length: parseInt(process.env.OTP_LENGTH || '6', 10),
   },
+  // Plain SMTP on purpose rather than a provider SDK: Gmail now, a branded
+  // no-reply@ on the domain later, becomes an env change instead of a code
+  // change. With SMTP_USER/SMTP_PASS unset, sending is disabled and the code
+  // is logged instead, so local dev needs no mail account.
+  mail: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '465', 10),
+    // 465 is implicit TLS; 587 upgrades via STARTTLS.
+    secure: (process.env.SMTP_SECURE || 'true') === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || '',
+    replyTo: process.env.MAIL_REPLY_TO || '',
+    appName: process.env.MAIL_APP_NAME || 'PitchMatch',
+  },
 });

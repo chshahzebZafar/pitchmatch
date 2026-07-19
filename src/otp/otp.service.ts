@@ -4,6 +4,7 @@ import { randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { OtpChannel, OtpPurpose } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 const MAX_ATTEMPTS = 5;
 
@@ -14,6 +15,7 @@ export class OtpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   /** Cryptographically-secure numeric code, zero-padded to `length`. */
@@ -46,16 +48,47 @@ export class OtpService {
       data: { userId, channel, purpose, codeHash, expiresAt },
     });
 
-    await this.send(channel, userId, code);
+    await this.send(channel, userId, code, purpose, Math.max(1, Math.round(ttl / 60)));
     return { expiresAt };
   }
 
   /**
-   * Deliver the OTP. TODO(M1): wire an SMTP provider for EMAIL and an SMS
-   * provider for PHONE. For now the code is logged so the flow is testable
-   * end-to-end without any third-party account.
+   * Deliver the OTP.
+   *
+   * EMAIL goes over SMTP. Delivery failures are deliberately not fatal: by this
+   * point the user row and the OTP row both exist, so throwing would 500 a
+   * signup that actually succeeded and strand the account. Instead we fall back
+   * to logging the code — the operator can still read it out of the server log,
+   * and "resend" retries the send.
+   *
+   * TODO: PHONE still has no SMS provider and always falls through to the log.
    */
-  private async send(channel: OtpChannel, userId: string, code: string) {
+  private async send(
+    channel: OtpChannel,
+    userId: string,
+    code: string,
+    purpose: OtpPurpose,
+    ttlMinutes: number,
+  ) {
+    if (channel === OtpChannel.EMAIL && this.mail.enabled) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, name: true },
+      });
+
+      if (user) {
+        const sent = await this.mail.sendOtp({
+          to: user.email,
+          name: user.name,
+          code,
+          ttlMinutes,
+          purpose,
+        });
+        if (sent) return;
+        this.logger.warn(`Email delivery failed for user=${userId}; falling back to log.`);
+      }
+    }
+
     this.logger.log(`[OTP:${channel}] user=${userId} code=${code}`);
   }
 
