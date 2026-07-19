@@ -9,7 +9,7 @@ async function main() {
   const email = process.env.ADMIN_EMAIL;
   const phone = process.env.ADMIN_PHONE;
   const password = process.env.ADMIN_PASSWORD;
-  const name = process.env.ADMIN_NAME || 'PitchMatch Admin';
+  const name = process.env.ADMIN_NAME || 'MatchVenture Admin';
 
   if (!email || !phone || !password) {
     throw new Error(

@@ -81,9 +81,9 @@ const transporter = nodemailer.createTransport({
 
   try {
     const info = await transporter.sendMail({
-      from: cfg.from || `"PitchMatch" <${cfg.user}>`,
+      from: cfg.from || `"MatchVenture" <${cfg.user}>`,
       to,
-      subject: 'PitchMatch SMTP test',
+      subject: 'MatchVenture SMTP test',
       text: 'If you are reading this, OTP email will work from this server.',
     });
     console.log(`OK  : sent, messageId=${info.messageId}`);

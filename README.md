@@ -1,6 +1,6 @@
-# PitchMatch — Backend API
+# MatchVenture — Backend API
 
-Self-contained **NestJS + MySQL (Prisma)** backend for PitchMatch.
+Self-contained **NestJS + MySQL (Prisma)** backend for MatchVenture.
 Authentication is handled entirely here — **no Supabase, no external auth provider.**
 
 - JWT access + refresh tokens (refresh tokens are hashed & stored, so they can be revoked)
@@ -67,9 +67,9 @@ Hostinger **Business/Cloud Web Hosting** runs managed Node.js apps directly from
 
    ```bash
    cd backend
-   git init && git add . && git commit -m "PitchMatch backend: auth"
+   git init && git add . && git commit -m "MatchVenture backend: auth"
    git branch -M main
-   git remote add origin https://github.com/<you>/pitchmatch-backend.git
+   git remote add origin https://github.com/<you>/matchventure-backend.git
    git push -u origin main
    ```
 

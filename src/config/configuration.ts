@@ -24,6 +24,6 @@ export default () => ({
     pass: process.env.SMTP_PASS || '',
     from: process.env.MAIL_FROM || '',
     replyTo: process.env.MAIL_REPLY_TO || '',
-    appName: process.env.MAIL_APP_NAME || 'PitchMatch',
+    appName: process.env.MAIL_APP_NAME || 'MatchVenture',
   },
 });

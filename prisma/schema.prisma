@@ -1,4 +1,4 @@
-// PitchMatch — Prisma schema (MySQL)
+// MatchVenture — Prisma schema (MySQL)
 // v0.1 covers self-contained auth (User + refresh tokens + OTP).
 // Domain tables (profiles, swipes, unlocks, matches, subscriptions, quota_ledger)
 // are added in later milestones — see PITCHMATCH_BUILD_CHECKLIST.md.

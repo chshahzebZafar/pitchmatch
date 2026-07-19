@@ -82,7 +82,7 @@ export class MailService implements OnModuleInit {
   }
 
   private from(): string {
-    const app = this.config.get<string>('mail.appName') ?? 'PitchMatch';
+    const app = this.config.get<string>('mail.appName') ?? 'MatchVenture';
     const explicit = this.config.get<string>('mail.from');
     if (explicit) return explicit;
     // Gmail rewrites the envelope sender to the authenticated account anyway,
@@ -122,7 +122,7 @@ export class MailService implements OnModuleInit {
   }
 
   private get app(): string {
-    return this.config.get<string>('mail.appName') ?? 'PitchMatch';
+    return this.config.get<string>('mail.appName') ?? 'MatchVenture';
   }
 
   /**

@@ -34,7 +34,7 @@ async function bootstrap() {
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('PitchMatch API')
+    .setTitle('MatchVenture API')
     .setDescription('Investor ↔ Innovator matchmaking backend')
     .setVersion('0.1.0')
     .addBearerAuth()
@@ -45,7 +45,7 @@ async function bootstrap() {
   // Hostinger (and most managed Node hosts) inject PORT — always honor it.
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port, '0.0.0.0');
-  Logger.log(`PitchMatch API running on :${port}/${prefix}`, 'Bootstrap');
+  Logger.log(`MatchVenture API running on :${port}/${prefix}`, 'Bootstrap');
 }
 
 bootstrap();

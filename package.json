@@ -1,7 +1,7 @@
 {
-  "name": "pitchmatch-backend",
+  "name": "matchventure-backend",
   "version": "0.1.0",
-  "description": "PitchMatch backend API (NestJS + MySQL/Prisma) — self-contained auth",
+  "description": "MatchVenture backend API (NestJS + MySQL/Prisma) — self-contained auth",
   "private": true,
   "scripts": {
     "build": "nest build",
