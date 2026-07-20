@@ -17,6 +17,20 @@ export default () => ({
   push: {
     serviceAccount: process.env.FCM_SERVICE_ACCOUNT || '',
   },
+  // Checkout. Prices are minor units (cents/paisa) so no float touches money.
+  //
+  // ALLOW_DUMMY_PAYMENTS grants credits without anyone paying. It exists for
+  // testing the flow end to end and is refused outright when NODE_ENV is
+  // production, because a test checkout left on in prod is a free-credits
+  // faucet for anyone who can call the API.
+  payments: {
+    nodeEnv: process.env.NODE_ENV || 'development',
+    allowDummy: process.env.ALLOW_DUMMY_PAYMENTS || 'false',
+    packs: JSON.parse(
+      process.env.CREDIT_PACKS ||
+        '[{"productId":"credits_5","credits":5,"priceMinor":499,"currency":"USD"},{"productId":"credits_20","credits":20,"priceMinor":1499,"currency":"USD"},{"productId":"credits_50","credits":50,"priceMinor":2999,"currency":"USD"}]',
+    ),
+  },
   // Google Play Billing. The pack catalogue lives server-side on purpose:
   // credits granted must never be decided by the client.
   play: {

@@ -19,6 +19,7 @@ CREATE TABLE `credit_ledger` (
 CREATE TABLE `purchases` (
     `id` VARCHAR(191) NOT NULL,
     `user_id` VARCHAR(191) NOT NULL,
+    `provider` ENUM('DUMMY', 'PAYPAL', 'GOOGLE_PLAY') NOT NULL DEFAULT 'DUMMY',
     `product_id` VARCHAR(191) NOT NULL,
     `purchase_token` VARCHAR(512) NOT NULL,
     `credits` INTEGER NOT NULL,

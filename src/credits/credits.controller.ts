@@ -4,7 +4,14 @@ import { ConfigService } from '@nestjs/config';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreditsService } from './credits.service';
 import { PlayBillingService } from './play-billing.service';
-import { PurchaseDto, RevealDto } from './dto/credits.dto';
+import {
+  CaptureOrderDto,
+  CreateOrderDto,
+  PurchaseDto,
+  RevealDto,
+} from './dto/credits.dto';
+import { CheckoutService } from './checkout.service';
+import { PayProvider } from '@prisma/client';
 
 @ApiTags('credits')
 @ApiBearerAuth()
@@ -14,6 +21,7 @@ export class CreditsController {
     private readonly credits: CreditsService,
     private readonly play: PlayBillingService,
     private readonly config: ConfigService,
+    private readonly checkout: CheckoutService,
   ) {}
 
   @Get()
@@ -31,7 +39,32 @@ export class CreditsController {
   @Get('packs')
   @ApiOperation({ summary: 'Purchasable credit packs, for the store screen' })
   packs() {
-    return { packs: this.config.get('play.packs') ?? [], billingEnabled: this.play.enabled };
+    return {
+      packs: this.checkout.packs(),
+      // The client uses these to decide which buttons to show, rather than
+      // guessing and failing at capture time.
+      testCheckoutEnabled: this.checkout.dummyAllowed,
+      playBillingEnabled: this.play.enabled,
+    };
+  }
+
+  @Get('orders')
+  @ApiOperation({ summary: 'Checkout history for this user' })
+  orders(@CurrentUser('id') userId: string) {
+    return this.checkout.orders(userId);
+  }
+
+  @Post('checkout')
+  @ApiOperation({ summary: 'Open an order for a credit pack' })
+  createOrder(@CurrentUser('id') userId: string, @Body() dto: CreateOrderDto) {
+    // Only the test rail for now; PayPal registers here when it lands.
+    return this.checkout.createOrder(userId, dto.productId, PayProvider.DUMMY);
+  }
+
+  @Post('checkout/capture')
+  @ApiOperation({ summary: 'Complete an order and grant its credits' })
+  captureOrder(@CurrentUser('id') userId: string, @Body() dto: CaptureOrderDto) {
+    return this.checkout.captureOrder(userId, dto.orderId, dto.approve ?? true);
   }
 
   @Post('reveal')

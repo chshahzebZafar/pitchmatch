@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CreditReason, Prisma, PurchaseState } from '@prisma/client';
+import { CreditReason, PayProvider, Prisma, PurchaseState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -187,6 +187,7 @@ export class CreditsService {
     productId: string;
     purchaseToken: string;
     credits: number;
+    provider?: PayProvider;
     raw?: Prisma.InputJsonValue;
   }) {
     const existing = await this.prisma.purchase.findUnique({
@@ -211,6 +212,7 @@ export class CreditsService {
       const purchase = await tx.purchase.create({
         data: {
           userId: input.userId,
+          provider: input.provider ?? PayProvider.GOOGLE_PLAY,
           productId: input.productId,
           purchaseToken: input.purchaseToken,
           credits: input.credits,

@@ -426,6 +426,9 @@ enum CreditReason {
 model Purchase {
   id            String        @id @default(cuid())
   userId        String        @map("user_id")
+  /// Which payment rail settled this. Kept per-row so switching providers does
+  /// not make old purchases ambiguous.
+  provider      PayProvider   @default(DUMMY)
   productId     String        @map("product_id")
   purchaseToken String        @unique @map("purchase_token") @db.VarChar(512)
   credits       Int
@@ -445,6 +448,13 @@ enum PurchaseState {
   PENDING
   VERIFIED
   REJECTED
+}
+
+enum PayProvider {
+  /// Local test checkout. Never grants unless explicitly enabled by env.
+  DUMMY
+  PAYPAL
+  GOOGLE_PLAY
 }
 
 /// Someone whose identity this user has paid to reveal. Unique per pair so
