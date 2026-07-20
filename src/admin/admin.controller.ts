@@ -4,7 +4,12 @@ import { MediatorVerificationStatus, ReportStatus, Role } from '@prisma/client';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminService } from './admin.service';
-import { MediatorDecisionDto, ReportDecisionDto, UserStatusDto } from './dto/admin.dto';
+import {
+  MediatorDecisionDto,
+  ReportDecisionDto,
+  TestPushDto,
+  UserStatusDto,
+} from './dto/admin.dto';
 
 /**
  * Admin surface.
@@ -28,6 +33,12 @@ export class AdminController {
   @ApiOperation({ summary: 'Dashboard counts, action-required queues first' })
   stats() {
     return this.admin.stats();
+  }
+
+  @Post('push/test')
+  @ApiOperation({ summary: 'Send a real test notification to one user, with a reason on failure' })
+  testPush(@Body() dto: TestPushDto) {
+    return this.admin.testPush(dto.email);
   }
 
   @Get('mediators')

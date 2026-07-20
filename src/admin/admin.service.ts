@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PushService } from '../push/push.service';
 
 /** Fields safe to return about a user in an admin list. Never the password hash. */
 const USER_SUMMARY = {
@@ -28,6 +29,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly push: PushService,
   ) {}
 
   /** Counts for the dashboard — the two queues that need action come first. */
@@ -47,6 +49,58 @@ export class AdminService {
       users: Object.fromEntries(users.map((u) => [u.role, u._count])),
       matches,
       suspended,
+    };
+  }
+
+  /**
+   * Send a real push to one user's devices, for diagnosing delivery.
+   *
+   * Push otherwise only fires from a match or a message, so verifying it meant
+   * faking a match. The response separates the three ways this fails --
+   * service account not configured, no device registered, FCM rejected the
+   * send -- because "nothing arrived" on its own says none of that.
+   */
+  async testPush(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true },
+    });
+    if (!user) throw new NotFoundException('No user with that email');
+
+    const devices = await this.prisma.pushToken.count({ where: { userId: user.id } });
+
+    if (!this.push.enabled) {
+      return {
+        ok: false,
+        reason: 'FCM_SERVICE_ACCOUNT is not configured on the server',
+        devices,
+        sent: 0,
+      };
+    }
+    if (devices === 0) {
+      return {
+        ok: false,
+        reason: 'No device registered. The user must sign in on a build that has google-services.json and grant the notification permission.',
+        devices,
+        sent: 0,
+      };
+    }
+
+    const sent = await this.push.sendToUser(user.id, {
+      title: 'Test notification',
+      body: `If you can see this, push is working for ${user.name}.`,
+      // No `type`, so tapping it just opens the app rather than routing.
+      data: { type: 'test' },
+    });
+
+    return {
+      ok: sent > 0,
+      reason:
+        sent > 0
+          ? 'Delivered to FCM'
+          : 'FCM rejected every token — see the server log for the exact error. Dead tokens have been pruned.',
+      devices,
+      sent,
     };
   }
 

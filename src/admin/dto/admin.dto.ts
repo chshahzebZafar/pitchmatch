@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MediatorVerificationStatus, ReportStatus, UserStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /** Approve or reject a mediator's credentials. PENDING is not offered — a
  *  decision endpoint that can un-decide would just hide mistakes. */
@@ -28,4 +28,10 @@ export class UserStatusDto {
   @ApiProperty({ enum: [UserStatus.ACTIVE, UserStatus.SUSPENDED] })
   @IsEnum(UserStatus)
   status: UserStatus;
+}
+
+export class TestPushDto {
+  @ApiProperty({ description: 'Email of the user to notify' })
+  @IsEmail()
+  email: string;
 }
