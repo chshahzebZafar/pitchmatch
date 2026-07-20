@@ -12,6 +12,7 @@ import { OtpChannel, OtpPurpose, Role, UserStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
+import { CreditsService } from '../credits/credits.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly otp: OtpService,
     private readonly mail: MailService,
+    private readonly credits: CreditsService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -85,6 +87,9 @@ export class AuthService {
     // Fire-and-forget: a mail failure must not fail verification, which has
     // already succeeded and issued tokens by this point.
     void this.mail.sendWelcome(updated.email, updated.name);
+    // Free credits so the paywall can be experienced before it bites. Awaited
+    // is unnecessary and grantSignupBonus never throws.
+    void this.credits.grantSignupBonus(updated.id);
 
     return this.issueTokens(updated.id, updated.role);
   }

@@ -17,6 +17,16 @@ export default () => ({
   push: {
     serviceAccount: process.env.FCM_SERVICE_ACCOUNT || '',
   },
+  // Google Play Billing. The pack catalogue lives server-side on purpose:
+  // credits granted must never be decided by the client.
+  play: {
+    serviceAccount: process.env.PLAY_SERVICE_ACCOUNT || '',
+    packageName: process.env.PLAY_PACKAGE_NAME || 'com.matchventure.app',
+    packs: JSON.parse(
+      process.env.PLAY_PACKS ||
+        '[{"productId":"credits_5","credits":5},{"productId":"credits_20","credits":20},{"productId":"credits_50","credits":50}]',
+    ) as { productId: string; credits: number }[],
+  },
   // Plain SMTP on purpose rather than a provider SDK: Gmail now, a branded
   // no-reply@ on the domain later, becomes an env change instead of a code
   // change. With SMTP_USER/SMTP_PASS unset, sending is disabled and the code

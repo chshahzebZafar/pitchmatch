@@ -12,6 +12,7 @@ import { DiscoveryModule } from './discovery/discovery.module';
 import { ChatModule } from './chat/chat.module';
 import { SafetyModule } from './safety/safety.module';
 import { AdminModule } from './admin/admin.module';
+import { CreditsModule } from './credits/credits.module';
 import { HealthController } from './health.controller';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -28,6 +29,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ChatModule,
     SafetyModule,
     AdminModule,
+    CreditsModule,
   ],
   controllers: [HealthController],
   providers: [

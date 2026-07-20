@@ -7,6 +7,7 @@ import {
 import { Role, SwipeDirection } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { CreditsService } from '../credits/credits.service';
 import { PushService } from '../push/push.service';
 import { SafetyService } from '../safety/safety.service';
 import { scorePair } from './matching';
@@ -18,6 +19,7 @@ export class DiscoveryService {
     private readonly safety: SafetyService,
     private readonly mail: MailService,
     private readonly push: PushService,
+    private readonly credits: CreditsService,
   ) {}
 
   async feed(userId: string, role: Role, limit = 20, offset = 0) {
@@ -121,7 +123,25 @@ export class DiscoveryService {
       })
       .sort((a, b) => b.score - a.score);
 
-    return { total: scored.length, items: scored.map(({ c, score }) => this.toCard(c, score)) };
+    // Identity is the paid part. Everyone sees that someone is interested and
+    // how well they match -- that is the reason to pay -- but the name and
+    // photo stay hidden until a credit is spent. Masking happens here, on the
+    // server: a client-side blur is not a paywall, it is a suggestion.
+    const revealed = await this.credits.revealedIds(userId);
+
+    return {
+      total: scored.length,
+      items: scored.map(({ c, score }) => {
+        const card = this.toCard(c, score);
+        if (revealed.has(c.id)) return { ...card, locked: false };
+        return {
+          ...card,
+          firstName: 'Someone',
+          photoUrl: null,
+          locked: true,
+        };
+      }),
+    };
   }
 
   async swipe(userId: string, targetId: string, direction: SwipeDirection) {
